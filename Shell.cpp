@@ -78,17 +78,53 @@ void Shell::executeCd(const Command &parsedCommand)
     if (parsedCommand.options.empty())
     {
         std::cout << "Usage: cd <directory>" << std::endl;
+        std::cout << "Usage: cd [options] [directory]\n"
+                  << "Change the current directory.\n\n"
+                  << "Options:\n"
+                  << "  -l      Display the current directory\n"
+                  << "  -h      Display this help message\n";
     }
     else
     {
-        try
+        bool displayCurrentDir = false;
+        bool help = false;
+        for (auto &&i : parsedCommand.options)
         {
-            fs::current_path(parsedCommand.options[0]);
+            if (i == "-h")
+            {
+                help = true;
+            }
+            else if (i == "-l")
+            {
+                displayCurrentDir = true;
+            }
         }
 
-        catch (const std::exception &e)
+        if (help)
         {
-            std::cerr << "Error changing directory: " << e.what() << std::endl;
+            std::cout << "Usage: cd [options] [directory]\n"
+                      << "Change the current directory.\n\n"
+                      << "Options:\n"
+                      << "  -l      Display the current directory\n"
+                      << "  -h      Display this help message\n";
+            return;
+        }
+
+        if (displayCurrentDir)
+        {
+            std::cout << get_pwd() << '\n';
+        }
+        else
+        {
+            try
+            {
+                fs::current_path(parsedCommand.options[0]);
+            }
+
+            catch (const std::exception &e)
+            {
+                std::cerr << "Error changing directory: " << e.what() << std::endl;
+            }
         }
     }
 }
@@ -134,97 +170,97 @@ void Shell::executeRm(const Command &parsedCommand)
 
 void Shell::executeLs(const Command &parsedCommand)
 {
-    int opt;
-    bool showHidden = false;
-    bool reverseOrder = false;
-    bool longFormat = false;
+    // int opt;
+    // bool showHidden = false;
+    // bool reverseOrder = false;
+    // bool longFormat = false;
 
-    while ((opt = getopt(argc, argv, "Ral")) != -1)
-    {
-        switch (opt)
-        {
-        case 'a':
-            showHidden = true;
-            break;
-        case 'r':
-            reverseOrder = true;
-            break;
-        case 'l':
-            longFormat = true;
-            break;
-        case '?':
-            std::cerr << "Unknown option: -" << char(optopt) << std::endl;
-            return 1;
-        default:
-            return 1;
-        }
-    }
+    // while ((opt = getopt(argc, argv, "Ral")) != -1)
+    // {
+    //     switch (opt)
+    //     {
+    //     case 'a':
+    //         showHidden = true;
+    //         break;
+    //     case 'r':
+    //         reverseOrder = true;
+    //         break;
+    //     case 'l':
+    //         longFormat = true;
+    //         break;
+    //     case '?':
+    //         std::cerr << "Unknown option: -" << char(optopt) << std::endl;
+    //         return 1;
+    //     default:
+    //         return 1;
+    //     }
+    // }
 
-    // If no directory is provided, use the current working directory
-    const char *path = (optind < argc) ? argv[optind] : ".";
+    // // If no directory is provided, use the current working directory
+    // const char *path = (optind < argc) ? argv[optind] : ".";
 
-    // Check if the '-R' option is present
-    if (std::find(argv, argv + argc, std::string("-R")) != argv + argc)
-    {
-        listFilesRecursive(path, showHidden, reverseOrder, longFormat);
-    }
-    else
-    {
-        // Non-recursive version
-        listFiles(path, showHidden, reverseOrder, longFormat);
-    }
-    bool recursive = false;
-    bool showHidden = false;
+    // // Check if the '-R' option is present
+    // if (std::find(argv, argv + argc, std::string("-R")) != argv + argc)
+    // {
+    //     // listFilesRecursive(path, showHidden, reverseOrder, longFormat);
+    // }
+    // else
+    // {
+    //     // Non-recursive version
+    //     // listFiles(path, showHidden, reverseOrder, longFormat);
+    // }
+    // bool recursive = false;
+    // bool showHidden = false;
 
-    // Process options
-    for (const auto &option : parsedCommand.options)
-    {
-        if (option == "-r" || option == "--recursive")
-        {
-            recursive = true;
-        }
-        else if (option == "-h" || option == "--hidden")
-        {
-            showHidden = true;
-        }
-        else if (option == "--help")
-        {
-            // Display help for ls command
-            std::cout << "Usage: ls [OPTION]... [FILE]...\n";
-            std::cout << "List information about the FILEs (the current directory by default).\n";
-            std::cout << "\nOptions:\n";
-            std::cout << "  -r, --recursive   list subdirectories recursively\n";
-            std::cout << "  -h, --hidden      do not ignore entries starting with .\n";
-            std::cout << "      --help        display this help and exit\n";
-            return;
-        }
-        // Add more options as needed
-    }
+    // // Process options
+    // for (const auto &option : parsedCommand.options)
+    // {
+    //     if (option == "-r" || option == "--recursive")
+    //     {
+    //         recursive = true;
+    //     }
+    //     else if (option == "-h" || option == "--hidden")
+    //     {
+    //         showHidden = true;
+    //     }
+    //     else if (option == "--help")
+    //     {
+    //         // Display help for ls command
+    //         std::cout << "Usage: ls [OPTION]... [FILE]...\n";
+    //         std::cout << "List information about the FILEs (the current directory by default).\n";
+    //         std::cout << "\nOptions:\n";
+    //         std::cout << "  -r, --recursive   list subdirectories recursively\n";
+    //         std::cout << "  -h, --hidden      do not ignore entries starting with .\n";
+    //         std::cout << "      --help        display this help and exit\n";
+    //         return;
+    //     }
+    //     // Add more options as needed
+    // }
 
-    // List files and directories based on provided pattern
-    try
-    {
-        for (const auto &entry : fs::directory_iterator("."))
-        {
-            if (!showHidden && entry.path().filename().string()[0] == '.')
-            {
-                continue; // Skip hidden files if the option is not specified
-            }
+    // // List files and directories based on provided pattern
+    // try
+    // {
+    //     for (const auto &entry : fs::directory_iterator("."))
+    //     {
+    //         if (!showHidden && entry.path().filename().string()[0] == '.')
+    //         {
+    //             continue; // Skip hidden files if the option is not specified
+    //         }
 
-            std::cout << entry.path().filename() << std::endl;
+    //         std::cout << entry.path().filename() << std::endl;
 
-            if (recursive && fs::is_directory(entry))
-            {
-                // If recursive option is specified, list subdirectories recursively
-                // You need to implement recursive listing logic here
-                listFilesRecursively(entry.path(), showHidden);
-            }
-        }
-    }
-    catch (const std::exception &e)
-    {
-        std::cerr << "Error listing directory: " << e.what() << std::endl;
-    }
+    //         if (recursive && fs::is_directory(entry))
+    //         {
+    //             // If recursive option is specified, list subdirectories recursively
+    //             // You need to implement recursive listing logic here
+    //             listFilesRecursively(entry.path(), showHidden);
+    //         }
+    //     }
+    // }
+    // catch (const std::exception &e)
+    // {
+    //     std::cerr << "Error listing directory: " << e.what() << std::endl;
+    // }
 }
 
 void Shell::listFilesRecursively(const fs::path &directory, bool showHidden)

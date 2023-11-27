@@ -51,7 +51,7 @@ void listFiles(const char *path, bool showHidden, bool reverseOrder, bool longFo
 
             if (stat(filePath.c_str(), &fileStat) == 0)
             {
-                std::cout << "\tSize: " << fileStat.st_size << " bytes";
+                std::cout << "\nSize: " << fileStat.st_size << " bytes";
                 std::cout << "\tLast modified: " << ctime(&fileStat.st_mtime);
             }
         }
@@ -106,7 +106,7 @@ void listFilesRecursive(const char *path, bool showHidden, bool reverseOrder, bo
 
             if (stat(filePath.c_str(), &fileStat) == 0)
             {
-                std::cout << "\tSize: " << fileStat.st_size << " bytes";
+                std::cout << "\nSize: " << fileStat.st_size << " bytes";
                 std::cout << "\tLast modified: " << ctime(&fileStat.st_mtime);
             }
         }
@@ -114,11 +114,24 @@ void listFilesRecursive(const char *path, bool showHidden, bool reverseOrder, bo
         std::cout << std::endl;
 
         // If the entry is a subdirectory, recursively call listFilesRecursive
-        if (entry->d_type == DT_DIR && std::string(fileName) != "." && std::string(fileName) != "..")
+        struct stat subDirStat;
+        if (stat(filePath.c_str(), &subDirStat) == 0 && S_ISDIR(subDirStat.st_mode))
         {
             listFilesRecursive(filePath.c_str(), showHidden, reverseOrder, longFormat);
         }
     }
+}
+
+void displayHelp()
+{
+    std::cout << "Usage: ls [options] [directory]\n"
+              << "List information about files.\n\n"
+              << "Options:\n"
+              << "  -a      Include entries whose names begin with a dot (.)\n"
+              << "  -r      Reverse the order of the sort\n"
+              << "  -l      Use a long listing format\n"
+              << "  -R      List subdirectories recursively\n"
+              << "  -h      Display this help message\n";
 }
 
 int main(int argc, char *argv[])
@@ -128,8 +141,9 @@ int main(int argc, char *argv[])
     bool reverseOrder = false;
     bool longFormat = false;
     bool recursive = false;
+    bool help = false;
 
-    while ((opt = getopt(argc, argv, "rRal")) != -1)
+    while ((opt = getopt(argc, argv, "hrRal")) != -1)
     {
         switch (opt)
         {
@@ -145,6 +159,9 @@ int main(int argc, char *argv[])
         case 'R':
             recursive = true;
             break;
+        case 'h':
+            help = true;
+            break;
         case '?':
             std::cerr << "Unknown option: -" << char(optopt) << std::endl;
             return 1;
@@ -157,7 +174,12 @@ int main(int argc, char *argv[])
     const char *path = (optind < argc) ? argv[optind] : ".";
 
     // Check if the '-R' option is present
-    if (recursive)
+    if (help)
+    {
+        displayHelp();
+        return 0;
+    }
+    else if (recursive)
     {
         listFilesRecursive(path, showHidden, reverseOrder, longFormat);
     }
