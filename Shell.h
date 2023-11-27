@@ -6,6 +6,7 @@
 #include <string>
 #include <filesystem>
 
+namespace fs = std::filesystem;
 struct Command;
 
 class Shell {
@@ -18,6 +19,7 @@ private:
     void executeRm(const Command &parsedCommand);
     void executeLs(const Command &parsedCommand);
     void executeCp(const Command &parsedCommand);
+    void listFilesRecursively(const fs::path &directory, bool showHidden);
     
     // Helper functions for wildcard support
     std::vector<std::string> expandWildcards(const std::string &pattern);

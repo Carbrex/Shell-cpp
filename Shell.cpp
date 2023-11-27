@@ -134,29 +134,116 @@ void Shell::executeRm(const Command &parsedCommand)
 
 void Shell::executeLs(const Command &parsedCommand)
 {
-    if (parsedCommand.options.empty())
+    int opt;
+    bool showHidden = false;
+    bool reverseOrder = false;
+    bool longFormat = false;
+
+    while ((opt = getopt(argc, argv, "Ral")) != -1)
     {
-        // List files and directories in the current directory
-        try
+        switch (opt)
         {
-            for (const auto &entry : fs::directory_iterator("."))
-            {
-                std::cout << entry.path().filename() << std::endl;
-            }
+        case 'a':
+            showHidden = true;
+            break;
+        case 'r':
+            reverseOrder = true;
+            break;
+        case 'l':
+            longFormat = true;
+            break;
+        case '?':
+            std::cerr << "Unknown option: -" << char(optopt) << std::endl;
+            return 1;
+        default:
+            return 1;
         }
-        catch (const std::exception &e)
-        {
-            std::cerr << "Error listing directory: " << e.what() << std::endl;
-        }
+    }
+
+    // If no directory is provided, use the current working directory
+    const char *path = (optind < argc) ? argv[optind] : ".";
+
+    // Check if the '-R' option is present
+    if (std::find(argv, argv + argc, std::string("-R")) != argv + argc)
+    {
+        listFilesRecursive(path, showHidden, reverseOrder, longFormat);
     }
     else
     {
-        // List files and directories based on provided pattern
-        std::vector<std::string> files = expandWildcards(parsedCommand.options[0]);
-        for (const auto &file : files)
+        // Non-recursive version
+        listFiles(path, showHidden, reverseOrder, longFormat);
+    }
+    bool recursive = false;
+    bool showHidden = false;
+
+    // Process options
+    for (const auto &option : parsedCommand.options)
+    {
+        if (option == "-r" || option == "--recursive")
         {
-            std::cout << file << std::endl;
+            recursive = true;
         }
+        else if (option == "-h" || option == "--hidden")
+        {
+            showHidden = true;
+        }
+        else if (option == "--help")
+        {
+            // Display help for ls command
+            std::cout << "Usage: ls [OPTION]... [FILE]...\n";
+            std::cout << "List information about the FILEs (the current directory by default).\n";
+            std::cout << "\nOptions:\n";
+            std::cout << "  -r, --recursive   list subdirectories recursively\n";
+            std::cout << "  -h, --hidden      do not ignore entries starting with .\n";
+            std::cout << "      --help        display this help and exit\n";
+            return;
+        }
+        // Add more options as needed
+    }
+
+    // List files and directories based on provided pattern
+    try
+    {
+        for (const auto &entry : fs::directory_iterator("."))
+        {
+            if (!showHidden && entry.path().filename().string()[0] == '.')
+            {
+                continue; // Skip hidden files if the option is not specified
+            }
+
+            std::cout << entry.path().filename() << std::endl;
+
+            if (recursive && fs::is_directory(entry))
+            {
+                // If recursive option is specified, list subdirectories recursively
+                // You need to implement recursive listing logic here
+                listFilesRecursively(entry.path(), showHidden);
+            }
+        }
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << "Error listing directory: " << e.what() << std::endl;
+    }
+}
+
+void Shell::listFilesRecursively(const fs::path &directory, bool showHidden)
+{
+    try
+    {
+        for (const auto &entry : fs::recursive_directory_iterator(directory))
+        {
+            if (!showHidden && entry.path().filename().string()[0] == '.')
+            {
+                continue; // Skip hidden files if the option is not specified
+            }
+
+            std::cout << entry.path().filename() << std::endl;
+        }
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << "Error listing directory recursively: " << e.what() << std::endl;
     }
 }
 
