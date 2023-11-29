@@ -5,16 +5,9 @@ DEBUGFLAGS = -g
 OPTFLAGS = -O2
 
 # Common source files
-COMMON_SRCS = cp.cpp rm.cpp ls.cpp mv.cpp cd.cpp Shell.cpp
-# Get the current Git branch
-GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD)
+COMMON_SRCS = cp.cpp rm.cpp ls.cpp mv.cpp Shell.cpp
 
-# Source files based on Git branch
-ifeq ($(GIT_BRANCH), main)
-    BRANCH_SRCS = $(COMMON_SRCS)
-else
-    $(error Unsupported branch: $(GIT_BRANCH))
-endif
+BRANCH_SRCS = $(COMMON_SRCS)
 
 # Object files
 BRANCH_OBJS = $(BRANCH_SRCS:.cpp=.o)
