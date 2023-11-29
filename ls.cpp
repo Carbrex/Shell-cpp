@@ -5,6 +5,15 @@
 #include <sys/types.h>
 #include <vector>
 #include <algorithm>
+#include <glob.h>
+#include <cstring>
+#include <filesystem>
+
+bool fileExists(const std::string &path)
+{
+    struct stat buffer;
+    return (stat(path.c_str(), &buffer) == 0);
+}
 
 void listFiles(const char *path, bool showHidden, bool reverseOrder, bool longFormat)
 {
@@ -62,6 +71,7 @@ void listFiles(const char *path, bool showHidden, bool reverseOrder, bool longFo
 
 void listFilesRecursive(const char *path, bool showHidden, bool reverseOrder, bool longFormat)
 {
+    // std::cout<<path<<":\n";
     DIR *dir;
     struct dirent *entry;
     std::vector<std::string> fileNames;
@@ -134,6 +144,11 @@ void displayHelp()
               << "  -h      Display this help message\n";
 }
 
+bool isWildcard(const char *path)
+{
+    return std::strchr(path, '*') != nullptr || std::strchr(path, '?') != nullptr;
+}
+
 int main(int argc, char *argv[])
 {
     int opt;
@@ -171,22 +186,44 @@ int main(int argc, char *argv[])
     }
 
     // If no directory is provided, use the current working directory
-    const char *path = (optind < argc) ? argv[optind] : ".";
-
-    // Check if the '-R' option is present
     if (help)
     {
         displayHelp();
         return 0;
     }
-    else if (recursive)
+    if (optind < argc)
     {
-        listFilesRecursive(path, showHidden, reverseOrder, longFormat);
+        for (size_t i = optind; i < argc; i++)
+        {
+            const char *path = argv[i];
+            // Check if the '-R' option is present
+            if (fileExists(path) && !std::filesystem::is_directory(path))
+            {
+                std::cout << path << '\n';
+            }
+            else if (recursive)
+            {
+                listFilesRecursive(path, showHidden, reverseOrder, longFormat);
+            }
+            else
+            {
+                std::cout<<path<<":\n";
+                listFiles(path, showHidden, reverseOrder, longFormat);
+                std::cout<<'\n';
+            }
+        }
     }
     else
     {
-        // Non-recursive version
-        listFiles(path, showHidden, reverseOrder, longFormat);
+        const char *path = ".";
+        if (recursive)
+        {
+            listFilesRecursive(path, showHidden, reverseOrder, longFormat);
+        }
+        else
+        {
+            listFiles(path, showHidden, reverseOrder, longFormat);
+        }
     }
 
     return 0;

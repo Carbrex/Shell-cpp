@@ -2,6 +2,8 @@
 #include <unistd.h>
 #include <cstdlib>
 #include <filesystem>
+#include <vector>
+#include <algorithm>
 
 namespace fs = std::filesystem;
 
@@ -35,6 +37,16 @@ void removeDirectory(const fs::path &dirPath, bool verbose)
     {
         std::cerr << "Error removing directory: " << e.what() << std::endl;
     }
+}
+
+std::vector<fs::path> expandWildcard(const fs::path &pattern)
+{
+    std::vector<fs::path> result;
+    for (const auto &entry : fs::directory_iterator(pattern))
+    {
+        result.push_back(entry.path());
+    }
+    return result;
 }
 
 int main(int argc, char *argv[])
@@ -83,64 +95,87 @@ int main(int argc, char *argv[])
         std::exit(EXIT_FAILURE);
     }
 
-    fs::path pathToRemove = argv[optind];
-
-    if (interactive)
+    for (size_t i = optind; i < argc; i++)
     {
-        std::cout << "Interactive mode is enabled. Be cautious!\n";
-    }
-
-    if (fs::exists(pathToRemove))
-    {
-        if (fs::is_directory(pathToRemove) && recursive)
+        fs::path pathToRemove = argv[i];
+        if (pathToRemove.has_relative_path() && (pathToRemove.has_filename() && (pathToRemove.filename().string().find('*') != std::string::npos || pathToRemove.filename().string().find('?') != std::string::npos)))
         {
-            if (interactive)
+            std::vector<fs::path> expandedPaths = expandWildcard(pathToRemove);
+            for (const auto &expandedPath : expandedPaths)
             {
-                std::string response;
-                std::cout << "Remove directory and its contents (y/n)? ";
-                std::cin >> response;
-
-                if (response == "y" || response == "Y")
+                if (fs::exists(expandedPath))
                 {
-                    removeDirectory(pathToRemove, verbose);
+                    if (fs::is_directory(expandedPath))
+                    {
+                        if (!recursive)
+                        {
+                            std::cout << "rm: cannot remove " << expandedPath << ": Is a directory\n";
+                            continue;
+                        }
+                    }
+
+                    if (interactive)
+                    {
+                        std::string response;
+                        std::cout << "Remove " << (fs::is_directory(expandedPath) ? "directory and its contents" : "file") << " '" << expandedPath << "' (y/n)? ";
+                        std::cin >> response;
+
+                        if (response == "y" || response == "Y")
+                        {
+                            fs::is_directory(expandedPath) ? removeDirectory(expandedPath, verbose) : removeFile(expandedPath, verbose);
+                        }
+                        else
+                        {
+                            std::cout << "Operation canceled.\n";
+                        }
+                    }
+                    else
+                    {
+                        fs::is_directory(expandedPath) ? removeDirectory(expandedPath, verbose) : removeFile(expandedPath, verbose);
+                    }
                 }
                 else
                 {
-                    std::cout << "Operation canceled.\n";
+                    std::cerr << "Error: Path does not exist: " << expandedPath << std::endl;
                 }
-            }
-            else
-            {
-                removeDirectory(pathToRemove, verbose);
             }
         }
         else
         {
-            if (interactive)
+            if (fs::exists(pathToRemove))
             {
-                std::string response;
-                std::cout << "Remove file (y/n)? ";
-                std::cin >> response;
-
-                if (response == "y" || response == "Y")
+                if (fs::is_directory(pathToRemove) && !recursive)
                 {
-                    removeFile(pathToRemove, verbose);
+                    std::cout << "rm: cannot remove " << pathToRemove << ": Is a directory\n";
+                    return 0;
+                }
+
+                if (interactive)
+                {
+                    std::string response;
+                    std::cout << "Remove " << (fs::is_directory(pathToRemove) ? "directory and its contents" : "file") << " '" << pathToRemove << "' (y/n)? ";
+                    std::cin >> response;
+
+                    if (response == "y" || response == "Y")
+                    {
+                        fs::is_directory(pathToRemove) ? removeDirectory(pathToRemove, verbose) : removeFile(pathToRemove, verbose);
+                    }
+                    else
+                    {
+                        std::cout << "Operation canceled.\n";
+                    }
                 }
                 else
                 {
-                    std::cout << "Operation canceled.\n";
+                    fs::is_directory(pathToRemove) ? removeDirectory(pathToRemove, verbose) : removeFile(pathToRemove, verbose);
                 }
             }
             else
             {
-                removeFile(pathToRemove, verbose);
+                std::cerr << "Error: Path does not exist: " << pathToRemove << std::endl;
+                std::exit(EXIT_FAILURE);
             }
         }
-    }
-    else
-    {
-        std::cerr << "Error: Path does not exist: " << pathToRemove << std::endl;
-        std::exit(EXIT_FAILURE);
     }
 
     return 0;

@@ -302,22 +302,22 @@ void Shell::executeCp(const Command &parsedCommand)
     }
 }
 
-// std::vector<std::string> Shell::expandWildcards(const std::string &pattern)
-// {
-//     std::vector<std::string> result;
-//     try
-//     {
-//         for (const auto &entry : fs::directory_iterator(pattern))
-//         {
-//             result.push_back(entry.path().string());
-//         }
-//     }
-//     catch (const std::exception &e)
-//     {
-//         std::cerr << "Error expanding wildcards: " << e.what() << std::endl;
-//     }
-//     return result;
-// }
+std::vector<std::string> Shell::expandWildcards(const std::string &pattern)
+{
+    std::vector<std::string> result;
+    try
+    {
+        for (const auto &entry : fs::directory_iterator(pattern))
+        {
+            result.push_back(entry.path().string());
+        }
+    }
+    catch (const std::exception &e)
+    {
+        std::cerr << "Error expanding wildcards: " << e.what() << std::endl;
+    }
+    return result;
+}
 
 std::vector<std::string> Shell::expandWildcards(const std::string &pattern)
 {

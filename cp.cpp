@@ -31,10 +31,10 @@ void copyFile(const std::string &source, const std::string &destination, bool in
 {
     if (isDirectory(source))
     {
-        std::cout<<"cp: -r not specified; omitting directory "<< source<<'\n';
-        return ;
+        std::cout << "cp: -r not specified; omitting directory " << source << '\n';
+        return;
     }
-    if (fileExists(destination))
+    if (fileExists(destination) && !isDirectory(destination))
     {
         if (interactive)
         {
@@ -49,6 +49,12 @@ void copyFile(const std::string &source, const std::string &destination, bool in
                 return;
             }
         }
+    }
+    else if (fileExists(destination))
+    {
+        std::ifstream src(source, std::ios::binary);
+        std::string newDest = destination + "/" + source;
+        std::ofstream dest(newDest, std::ios::binary);
     }
 
     std::ifstream src(source, std::ios::binary);
@@ -66,7 +72,13 @@ void copyDirectoryRecursive(const std::string &source, const std::string &destin
 {
     DIR *dir;
     struct dirent *entry;
-
+    if (!isDirectory(source))
+    {
+        std::cout << source << ' ' << destination << '\n';
+        std::ifstream src(source, std::ios::binary);
+        std::ofstream dest(destination, std::ios::binary);
+        return;
+    }
     if ((dir = opendir(source.c_str())) == nullptr)
     {
         std::cerr << "Error opening directory: " << source << std::endl;
@@ -145,39 +157,50 @@ int main(int argc, char *argv[])
         return 0;
     }
 
-    const std::string source = argv[optind];
-    const std::string destination = argv[optind + 1];
+    std::string destination = argv[argc - 1];
+    int destinationInd = argc - 1;
 
-    if (!fileExists(source))
+    if (optind < destinationInd)
     {
-        std::cerr << "Error: Source file or directory does not exist: " << source << std::endl;
-        return 1;
-    }
-
-    // Check if the source is a directory and the recursive option is not provided
-    if (!recursive && fileExists(source) && source.back() == '/' && source.find('/') != std::string::npos)
-    {
-        std::cerr << "Error: Use the -r option to copy a directory: " << source << std::endl;
-        return 1;
-    }
-
-    if (recursive && fileExists(source) && !fileExists(destination))
-    {
-        if (mkdir(destination.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != 0)
+        for (size_t i = optind; i < destinationInd; i++)
         {
-            std::cerr << "Error creating destination directory: " << destination << std::endl;
-            return 1;
+            const std::string source = argv[i];
+            if (!fileExists(source))
+            {
+                std::cerr << "Error: Source file or directory does not exist: " << source << std::endl;
+                return 1;
+            }
+
+            // Check if the source is a directory and the recursive option is not provided
+            if (!recursive && fileExists(source) && source.back() == '/' && source.find('/') != std::string::npos)
+            {
+                std::cerr << "Error: Use the -r option to copy a directory: " << source << std::endl;
+                return 1;
+            }
+            if (recursive && fileExists(source) && !fileExists(destination))
+            {
+                if (mkdir(destination.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != 0)
+                {
+                    std::cerr << "Error creating destination directory: " << destination << std::endl;
+                    return 1;
+                }
+            }
+
+            std::string realDest = destination;
+            if (fileExists(destination) && isDirectory(destination))
+            {
+                destination = realDest + '/' + source;
+            }
+            if (recursive && fileExists(source) && fileExists(destination))
+            {
+                copyDirectoryRecursive(source, destination, interactive, verbose);
+            }
+            else
+            {
+                copyFile(source, destination, interactive, verbose);
+            }
+            destination = realDest;
         }
     }
-
-    if (recursive && fileExists(source) && fileExists(destination))
-    {
-        copyDirectoryRecursive(source, destination, interactive, verbose);
-    }
-    else
-    {
-        copyFile(source, destination, interactive, verbose);
-    }
-
     return 0;
 }
