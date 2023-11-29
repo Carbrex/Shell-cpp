@@ -19,13 +19,17 @@ echo "Condition 2 completed."
 # Condition 3: Create a directory with 100 files of 10MB each and subdirectories recursively
 echo "Condition 3: Creating directory with 50 files of 10MB each and subdirectories recursively..."
 mkdir -p condition3
+currDir=$(pwd)
+cd condition3
 for ((i=1; i<=50; i++)); do
-    subdirectory=condition3/subdir$i
-    mkdir -p $subdirectory
-    for ((j=1; j<=50; j++)); do
-        dd if=/dev/zero of=$subdirectory/file$j bs=10M count=1
+    for ((j=1; j<=100; j++)); do
+        dd if=/dev/zero of=file$j bs=10M count=1
     done
+    subdirectory=subdir$i
+    mkdir -p $subdirectory
+    cd $subdirectory
 done
+cd $currDir
 echo "Condition 3 completed."
 
 # Calculate the total number of files in condition3
