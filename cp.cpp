@@ -68,7 +68,6 @@ void CP::copyDirectoryRecursive(const std::string &source, const std::string &de
     struct dirent *entry;
     if (!isDirectory(source))
     {
-        std::cout << source << ' ' << destination << '\n';
         std::ifstream src(source, std::ios::binary);
         std::ofstream dest(destination, std::ios::binary);
         return;
@@ -87,9 +86,13 @@ void CP::copyDirectoryRecursive(const std::string &source, const std::string &de
         {
             std::string sourcePath = source + "/" + entryName;
             std::string destPath = destination + "/" + entryName;
-
-            if (entry->d_type == DT_DIR)
+            if (isDirectory(sourcePath))
             {
+                if (mkdir(destPath.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != 0)
+                {
+                    std::cerr << "Error creating destination directory: " << destination << std::endl;
+                    return;
+                }
                 copyDirectoryRecursive(sourcePath, destPath, interactive, verbose);
             }
             else
@@ -191,7 +194,7 @@ int CP::executeCp(int argc, char *argv[])
                     return 1;
                 }
             }
-            
+
             if (recursive && !fileExists(destination) && isDirectory(source))
             {
                 if (mkdir(destination.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != 0)

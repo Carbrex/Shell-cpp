@@ -4,3 +4,7 @@
 condition1
 condition2
 condition3
+result_debug
+result_release
+helper.sh
+!Q2_Output.txt
