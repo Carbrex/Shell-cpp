@@ -5,6 +5,17 @@
 #include <sstream>
 #include <unistd.h>
 #include <glob.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+#include <sys/wait.h>
+#include <sys/types.h>
+#include <fcntl.h>
+#include <signal.h>
+#include <pthread.h>
+#include <dirent.h>
+#include <cassert>
 
 namespace fs = std::filesystem;
 
@@ -13,7 +24,7 @@ struct Command
     std::string name;
     std::vector<std::string> options;
 };
-Command parseCommand(const std::string &userInput)
+Command Shell::parseCommand(const std::string &userInput)
 {
     Command result;
 
@@ -26,7 +37,20 @@ Command parseCommand(const std::string &userInput)
     {
         result.options.push_back(option);
     }
-
+    std::vector<std::string> expandedOptions;
+    for (const auto &option : result.options)
+    {
+        if (isWildcard(option.c_str()))
+        {
+            auto expanded = expandWildcards(option);
+            expandedOptions.insert(expandedOptions.end(), expanded.begin(), expanded.end());
+        }
+        else
+        {
+            expandedOptions.push_back(option);
+        }
+    }
+    result.options.swap(expandedOptions);
     return result;
 }
 
@@ -82,12 +106,16 @@ void Shell::executeCd(const Command &parsedCommand)
                   << "Change the current directory.\n\n"
                   << "Options:\n"
                   << "  -l      Display the current directory\n"
+                  << "  -v      Explain what is being done\n"
+                  << "  -i      Interactive\n"
                   << "  -h      Display this help message\n";
     }
     else
     {
         bool displayCurrentDir = false;
         bool help = false;
+        bool interactive = false;
+        bool verbose = false;
         for (auto &&i : parsedCommand.options)
         {
             if (i == "-h")
@@ -98,6 +126,14 @@ void Shell::executeCd(const Command &parsedCommand)
             {
                 displayCurrentDir = true;
             }
+            else if (i == "-i")
+            {
+                interactive = true;
+            }
+            else if (i == "-v")
+            {
+                verbose = true;
+            }
         }
 
         if (help)
@@ -106,6 +142,8 @@ void Shell::executeCd(const Command &parsedCommand)
                       << "Change the current directory.\n\n"
                       << "Options:\n"
                       << "  -l      Display the current directory\n"
+                      << "  -v      Explain what is being done\n"
+                      << "  -i      Interactive\n"
                       << "  -h      Display this help message\n";
             return;
         }
@@ -116,11 +154,31 @@ void Shell::executeCd(const Command &parsedCommand)
         }
         else
         {
-            try
+            if (interactive)
             {
-                fs::current_path(parsedCommand.options[0]);
+                std::cout << "Are you sure you want to cd to " << parsedCommand.options.back() << "(y/n): " << std::endl;
+                char response;
+                // std::cin.clear();
+                // std::cin.ignore();
+                std::cin >> response;
+
+                std::cin.clear();
+                std::cin.ignore();
+                if (response != 'y' && response != 'Y')
+                {
+                    std::cerr << "cd operation aborted by user." << std::endl;
+                    return;
+                }
             }
 
+            try
+            {
+                fs::current_path(parsedCommand.options[parsedCommand.options.size() - 1]);
+                if (verbose)
+                {
+                    std::cout << "Successfully changed directory to " << parsedCommand.options.back() << '\n';
+                }
+            }
             catch (const std::exception &e)
             {
                 std::cerr << "Error changing directory: " << e.what() << std::endl;
@@ -131,192 +189,155 @@ void Shell::executeCd(const Command &parsedCommand)
 
 void Shell::executeMv(const Command &parsedCommand)
 {
-    if (parsedCommand.options.size() != 2)
+    char *argv[parsedCommand.options.size() + 2];
+    // Populate the array
+    std::string file = "./mv.o";
+    argv[0] = new char[file.size() + 1];
+    std::strcpy(argv[0], file.c_str());
+    for (size_t i = 1; i <= parsedCommand.options.size(); ++i)
     {
-        std::cout << "Usage: mv <source> <destination>" << std::endl;
+        argv[i] = new char[parsedCommand.options[i - 1].size() + 1]; // +1 for null terminator
+        std::strcpy(argv[i], parsedCommand.options[i - 1].c_str());
+    }
+    argv[parsedCommand.options.size() + 1] = nullptr;
+    pid_t pid;
+    pid = fork();
+    if (pid == 0)
+    {
+        std::cout << execv("/home/geetika/OOPD/Shell-Project/mv.o", argv);
+        // If execv fails, print an error message and exit the child process
+        perror("execv");
+        exit(EXIT_FAILURE);
+    }
+    else if (pid == -1)
+    {
+        printf("Fork Error!");
     }
     else
     {
-        try
-        {
-            fs::rename(parsedCommand.options[0], parsedCommand.options[1]);
-        }
-        catch (const std::exception &e)
-
-        {
-            std::cerr << "Error moving file/directory: " << e.what() << std::endl;
-        }
+        waitpid(pid, NULL, 0);
+    }
+    // Remember to free the allocated memory
+    for (size_t i = 0; i < parsedCommand.options.size() + 1; ++i)
+    {
+        delete[] argv[i];
     }
 }
 
 void Shell::executeRm(const Command &parsedCommand)
 {
-    if (parsedCommand.options.empty())
+    char *argv[parsedCommand.options.size() + 2];
+    // Populate the array
+    std::string file = "./rm.o";
+    argv[0] = new char[file.size() + 1];
+    std::strcpy(argv[0], file.c_str());
+    for (size_t i = 1; i <= parsedCommand.options.size(); ++i)
     {
-        std::cout << "Usage: rm <file/directory>" << std::endl;
+        argv[i] = new char[parsedCommand.options[i - 1].size() + 1]; // +1 for null terminator
+        std::strcpy(argv[i], parsedCommand.options[i - 1].c_str());
+    }
+    argv[parsedCommand.options.size() + 1] = nullptr;
+    pid_t pid;
+    pid = fork();
+    if (pid == 0)
+    {
+        std::cout << execv("/home/geetika/OOPD/Shell-Project/rm.o", argv);
+        // If execv fails, print an error message and exit the child process
+        perror("execv");
+        exit(EXIT_FAILURE);
+    }
+    else if (pid == -1)
+    {
+        printf("Fork Error!");
     }
     else
     {
-        try
-        {
-            fs::remove_all(parsedCommand.options[0]);
-        }
-        catch (const std::exception &e)
-        {
-            std::cerr << "Error removing file/directory: " << e.what() << std::endl;
-        }
+        waitpid(pid, NULL, 0);
+    }
+    // Remember to free the allocated memory
+    for (size_t i = 0; i < parsedCommand.options.size() + 1; ++i)
+    {
+        delete[] argv[i];
     }
 }
 
 void Shell::executeLs(const Command &parsedCommand)
 {
-    // int opt;
-    // bool showHidden = false;
-    // bool reverseOrder = false;
-    // bool longFormat = false;
-
-    // while ((opt = getopt(argc, argv, "Ral")) != -1)
-    // {
-    //     switch (opt)
-    //     {
-    //     case 'a':
-    //         showHidden = true;
-    //         break;
-    //     case 'r':
-    //         reverseOrder = true;
-    //         break;
-    //     case 'l':
-    //         longFormat = true;
-    //         break;
-    //     case '?':
-    //         std::cerr << "Unknown option: -" << char(optopt) << std::endl;
-    //         return 1;
-    //     default:
-    //         return 1;
-    //     }
-    // }
-
-    // // If no directory is provided, use the current working directory
-    // const char *path = (optind < argc) ? argv[optind] : ".";
-
-    // // Check if the '-R' option is present
-    // if (std::find(argv, argv + argc, std::string("-R")) != argv + argc)
-    // {
-    //     // listFilesRecursive(path, showHidden, reverseOrder, longFormat);
-    // }
-    // else
-    // {
-    //     // Non-recursive version
-    //     // listFiles(path, showHidden, reverseOrder, longFormat);
-    // }
-    // bool recursive = false;
-    // bool showHidden = false;
-
-    // // Process options
-    // for (const auto &option : parsedCommand.options)
-    // {
-    //     if (option == "-r" || option == "--recursive")
-    //     {
-    //         recursive = true;
-    //     }
-    //     else if (option == "-h" || option == "--hidden")
-    //     {
-    //         showHidden = true;
-    //     }
-    //     else if (option == "--help")
-    //     {
-    //         // Display help for ls command
-    //         std::cout << "Usage: ls [OPTION]... [FILE]...\n";
-    //         std::cout << "List information about the FILEs (the current directory by default).\n";
-    //         std::cout << "\nOptions:\n";
-    //         std::cout << "  -r, --recursive   list subdirectories recursively\n";
-    //         std::cout << "  -h, --hidden      do not ignore entries starting with .\n";
-    //         std::cout << "      --help        display this help and exit\n";
-    //         return;
-    //     }
-    //     // Add more options as needed
-    // }
-
-    // // List files and directories based on provided pattern
-    // try
-    // {
-    //     for (const auto &entry : fs::directory_iterator("."))
-    //     {
-    //         if (!showHidden && entry.path().filename().string()[0] == '.')
-    //         {
-    //             continue; // Skip hidden files if the option is not specified
-    //         }
-
-    //         std::cout << entry.path().filename() << std::endl;
-
-    //         if (recursive && fs::is_directory(entry))
-    //         {
-    //             // If recursive option is specified, list subdirectories recursively
-    //             // You need to implement recursive listing logic here
-    //             listFilesRecursively(entry.path(), showHidden);
-    //         }
-    //     }
-    // }
-    // catch (const std::exception &e)
-    // {
-    //     std::cerr << "Error listing directory: " << e.what() << std::endl;
-    // }
-}
-
-void Shell::listFilesRecursively(const fs::path &directory, bool showHidden)
-{
-    try
+    char *argv[parsedCommand.options.size() + 2];
+    // Populate the array
+    std::string file = "./ls.o";
+    argv[0] = new char[file.size() + 1];
+    std::strcpy(argv[0], file.c_str());
+    for (size_t i = 1; i <= parsedCommand.options.size(); ++i)
     {
-        for (const auto &entry : fs::recursive_directory_iterator(directory))
-        {
-            if (!showHidden && entry.path().filename().string()[0] == '.')
-            {
-                continue; // Skip hidden files if the option is not specified
-            }
-
-            std::cout << entry.path().filename() << std::endl;
-        }
+        argv[i] = new char[parsedCommand.options[i - 1].size() + 1]; // +1 for null terminator
+        std::strcpy(argv[i], parsedCommand.options[i - 1].c_str());
     }
-    catch (const std::exception &e)
+    argv[parsedCommand.options.size() + 1] = nullptr;
+    pid_t pid;
+    pid = fork();
+    if (pid == 0)
     {
-        std::cerr << "Error listing directory recursively: " << e.what() << std::endl;
+        std::cout << execv("/home/geetika/OOPD/Shell-Project/ls.o", argv);
+        // If execv fails, print an error message and exit the child process
+        perror("execv");
+        exit(EXIT_FAILURE);
+    }
+    else if (pid == -1)
+    {
+        printf("Fork Error!");
+    }
+    else
+    {
+        waitpid(pid, NULL, 0);
+    }
+    // Remember to free the allocated memory
+    for (size_t i = 0; i < parsedCommand.options.size() + 1; ++i)
+    {
+        delete[] argv[i];
     }
 }
 
 void Shell::executeCp(const Command &parsedCommand)
 {
-    if (parsedCommand.options.size() != 2)
+    char *argv[parsedCommand.options.size() + 2];
+    // Populate the array
+    std::string file = "./cp.o";
+    argv[0] = new char[file.size() + 1];
+    std::strcpy(argv[0], file.c_str());
+    for (size_t i = 1; i <= parsedCommand.options.size(); ++i)
     {
-        std::cout << "Usage: cp <source> <destination>" << std::endl;
+        argv[i] = new char[parsedCommand.options[i - 1].size() + 1]; // +1 for null terminator
+        std::strcpy(argv[i], parsedCommand.options[i - 1].c_str());
+    }
+    argv[parsedCommand.options.size() + 1] = nullptr;
+    pid_t pid;
+    pid = fork();
+    if (pid == 0)
+    {
+        std::cout << execv("/home/geetika/OOPD/Shell-Project/cp.o", argv);
+        // If execv fails, print an error message and exit the child process
+        perror("execv");
+        exit(EXIT_FAILURE);
+    }
+    else if (pid == -1)
+    {
+        printf("Fork Error!");
     }
     else
     {
-        try
-        {
-            fs::copy(parsedCommand.options[0], parsedCommand.options[1], fs::copy_options::recursive);
-        }
-        catch (const std::exception &e)
-        {
-            std::cerr << "Error copying file/directory: " << e.what() << std::endl;
-        }
+        waitpid(pid, NULL, 0);
+    }
+    // Remember to free the allocated memory
+    for (size_t i = 0; i < parsedCommand.options.size() + 1; ++i)
+    {
+        delete[] argv[i];
     }
 }
 
-std::vector<std::string> Shell::expandWildcards(const std::string &pattern)
+bool Shell::isWildcard(const char *path)
 {
-    std::vector<std::string> result;
-    try
-    {
-        for (const auto &entry : fs::directory_iterator(pattern))
-        {
-            result.push_back(entry.path().string());
-        }
-    }
-    catch (const std::exception &e)
-    {
-        std::cerr << "Error expanding wildcards: " << e.what() << std::endl;
-    }
-    return result;
+    return std::strchr(path, '*') != nullptr || std::strchr(path, '?') != nullptr;
 }
 
 std::vector<std::string> Shell::expandWildcards(const std::string &pattern)
@@ -328,35 +349,14 @@ std::vector<std::string> Shell::expandWildcards(const std::string &pattern)
     {
         for (size_t i = 0; i < globResult.gl_pathc; ++i)
         {
-            result.push_back(globResult.gl_pathv[i]);
+            result.emplace_back(globResult.gl_pathv[i]);
         }
 
         globfree(&globResult);
     }
-    else
-    {
-        std::cerr << "Error expanding wildcards for pattern: " << pattern << std::endl;
-    }
 
     return result;
 }
-
-// std::vector<std::string> Shell::expandWildcards(const std::string &pattern)
-// {
-//     std::vector<std::string> result;
-//     try
-//     {
-//         for (const auto &entry : fs::directory_iterator(pattern))
-//         {
-//             result.push_back(entry.path().string());
-//         }
-//     }
-//     catch (const std::exception &e)
-//     {
-//         std::cerr << "Error expanding wildcards: " << e.what() << std::endl;
-//     }
-//     return result;
-// }
 
 int main()
 {
@@ -372,7 +372,7 @@ int main()
         std::string NAME = getenv("NAME");
         std::cout << USER << "@" << NAME << ": " << get_pwd() << "$ ";
         std::getline(std::cin, userInput);
-        Command parsedCommand = parseCommand(userInput);
+        Command parsedCommand = myShell.parseCommand(userInput);
 
         // Display the parsed command and options
         // std::cout << "Command: " << parsedCommand.name << std::endl;

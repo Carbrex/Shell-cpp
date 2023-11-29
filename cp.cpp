@@ -1,18 +1,6 @@
-#include <iostream>
-#include <unistd.h>
-#include <sys/stat.h>
-#include <cstdlib>
-#include <dirent.h>
-#include <cstring>
-#include <fstream>
+#include "cp.h"
 
-bool fileExists(const std::string &path)
-{
-    struct stat buffer;
-    return (stat(path.c_str(), &buffer) == 0);
-}
-
-bool isDirectory(const std::string &path)
+bool CP::isDirectory(const std::string &path)
 {
     struct stat pathStat;
 
@@ -27,7 +15,7 @@ bool isDirectory(const std::string &path)
     return S_ISDIR(pathStat.st_mode);
 }
 
-void copyFile(const std::string &source, const std::string &destination, bool interactive, bool verbose)
+void CP::copyFile(const std::string &source, const std::string &destination, bool interactive, bool verbose)
 {
     if (isDirectory(source))
     {
@@ -68,7 +56,13 @@ void copyFile(const std::string &source, const std::string &destination, bool in
     }
 }
 
-void copyDirectoryRecursive(const std::string &source, const std::string &destination, bool interactive, bool verbose)
+bool CP::fileExists(const std::string &path)
+{
+    struct stat buffer;
+    return (stat(path.c_str(), &buffer) == 0);
+}
+
+void CP::copyDirectoryRecursive(const std::string &source, const std::string &destination, bool interactive, bool verbose)
 {
     DIR *dir;
     struct dirent *entry;
@@ -108,7 +102,7 @@ void copyDirectoryRecursive(const std::string &source, const std::string &destin
     closedir(dir);
 }
 
-void displayHelp()
+void CP::displayHelp()
 {
     std::cout << "Usage: cp [options] source destination\n"
               << "Copy files or directories.\n\n"
@@ -119,7 +113,7 @@ void displayHelp()
               << "  -h      Display this help message\n";
 }
 
-int main(int argc, char *argv[])
+int CP::executeCp(int argc, char *argv[])
 {
     int opt;
     bool recursive = false;
@@ -150,7 +144,6 @@ int main(int argc, char *argv[])
             return 1;
         }
     }
-
     if (help || argc - optind < 2)
     {
         displayHelp();
@@ -162,7 +155,7 @@ int main(int argc, char *argv[])
 
     if (optind < destinationInd)
     {
-        for (size_t i = optind; i < destinationInd; i++)
+        for (int i = optind; i < destinationInd; i++)
         {
             const std::string source = argv[i];
             if (!fileExists(source))
@@ -177,7 +170,12 @@ int main(int argc, char *argv[])
                 std::cerr << "Error: Use the -r option to copy a directory: " << source << std::endl;
                 return 1;
             }
-            if (recursive && fileExists(source) && !fileExists(destination))
+            std::string realDest = destination;
+            if (fileExists(destination) && isDirectory(destination))
+            {
+                destination = realDest + '/' + source;
+            }
+            if (recursive && !fileExists(realDest) && isDirectory(source))
             {
                 if (mkdir(destination.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != 0)
                 {
@@ -185,13 +183,24 @@ int main(int argc, char *argv[])
                     return 1;
                 }
             }
-
-            std::string realDest = destination;
-            if (fileExists(destination) && isDirectory(destination))
+            else if (recursive && fileExists(realDest) && isDirectory(source))
             {
-                destination = realDest + '/' + source;
+                if (mkdir(destination.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != 0)
+                {
+                    std::cerr << "Error creating destination directory: " << destination << std::endl;
+                    return 1;
+                }
             }
-            if (recursive && fileExists(source) && fileExists(destination))
+            
+            if (recursive && !fileExists(destination) && isDirectory(source))
+            {
+                if (mkdir(destination.c_str(), S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH) != 0)
+                {
+                    std::cerr << "Error creating destination directory: " << destination << std::endl;
+                    return 1;
+                }
+            }
+            if (recursive)
             {
                 copyDirectoryRecursive(source, destination, interactive, verbose);
             }
@@ -203,4 +212,10 @@ int main(int argc, char *argv[])
         }
     }
     return 0;
+}
+
+int main(int argc, char *argv[])
+{
+    CP cp;
+    return cp.executeCp(argc, argv);
 }

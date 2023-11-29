@@ -1,10 +1,17 @@
-#include "rm.h"
+#include <iostream>
+#include <unistd.h>
+#include <cstdlib>
+#include <filesystem>
+#include <vector>
+#include <algorithm>
 
-void RM::removeFile(const std::filesystem::path &filePath, bool verbose)
+namespace fs = std::filesystem;
+
+void removeFile(const fs::path &filePath, bool verbose)
 {
     try
     {
-        std::filesystem::remove(filePath);
+        fs::remove(filePath);
         if (verbose)
         {
             std::cout << "Removed file: " << filePath << std::endl;
@@ -16,11 +23,11 @@ void RM::removeFile(const std::filesystem::path &filePath, bool verbose)
     }
 }
 
-void RM::removeDirectory(const std::filesystem::path &dirPath, bool verbose)
+void removeDirectory(const fs::path &dirPath, bool verbose)
 {
     try
     {
-        std::filesystem::remove_all(dirPath);
+        fs::remove_all(dirPath);
         if (verbose)
         {
             std::cout << "Removed directory and its contents: " << dirPath << std::endl;
@@ -32,17 +39,17 @@ void RM::removeDirectory(const std::filesystem::path &dirPath, bool verbose)
     }
 }
 
-std::vector<std::filesystem::path> RM::expandWildcard(const std::filesystem::path &pattern)
+std::vector<fs::path> expandWildcard(const fs::path &pattern)
 {
-    std::vector<std::filesystem::path> result;
-    for (const auto &entry : std::filesystem::directory_iterator(pattern))
+    std::vector<fs::path> result;
+    for (const auto &entry : fs::directory_iterator(pattern))
     {
         result.push_back(entry.path());
     }
     return result;
 }
 
-int RM::executeRM(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
     int opt;
     bool recursive = false;
@@ -88,17 +95,17 @@ int RM::executeRM(int argc, char *argv[])
         std::exit(EXIT_FAILURE);
     }
 
-    for (int i = optind; i < argc; i++)
+    for (size_t i = optind; i < argc; i++)
     {
-        std::filesystem::path pathToRemove = argv[i];
+        fs::path pathToRemove = argv[i];
         if (pathToRemove.has_relative_path() && (pathToRemove.has_filename() && (pathToRemove.filename().string().find('*') != std::string::npos || pathToRemove.filename().string().find('?') != std::string::npos)))
         {
-            std::vector<std::filesystem::path> expandedPaths = expandWildcard(pathToRemove);
+            std::vector<fs::path> expandedPaths = expandWildcard(pathToRemove);
             for (const auto &expandedPath : expandedPaths)
             {
-                if (std::filesystem::exists(expandedPath))
+                if (fs::exists(expandedPath))
                 {
-                    if (std::filesystem::is_directory(expandedPath))
+                    if (fs::is_directory(expandedPath))
                     {
                         if (!recursive)
                         {
@@ -110,12 +117,12 @@ int RM::executeRM(int argc, char *argv[])
                     if (interactive)
                     {
                         std::string response;
-                        std::cout << "Remove " << (std::filesystem::is_directory(expandedPath) ? "directory and its contents" : "file") << " '" << expandedPath << "' (y/n)? ";
+                        std::cout << "Remove " << (fs::is_directory(expandedPath) ? "directory and its contents" : "file") << " '" << expandedPath << "' (y/n)? ";
                         std::cin >> response;
 
                         if (response == "y" || response == "Y")
                         {
-                            std::filesystem::is_directory(expandedPath) ? removeDirectory(expandedPath, verbose) : removeFile(expandedPath, verbose);
+                            fs::is_directory(expandedPath) ? removeDirectory(expandedPath, verbose) : removeFile(expandedPath, verbose);
                         }
                         else
                         {
@@ -124,7 +131,7 @@ int RM::executeRM(int argc, char *argv[])
                     }
                     else
                     {
-                        std::filesystem::is_directory(expandedPath) ? removeDirectory(expandedPath, verbose) : removeFile(expandedPath, verbose);
+                        fs::is_directory(expandedPath) ? removeDirectory(expandedPath, verbose) : removeFile(expandedPath, verbose);
                     }
                 }
                 else
@@ -135,9 +142,9 @@ int RM::executeRM(int argc, char *argv[])
         }
         else
         {
-            if (std::filesystem::exists(pathToRemove))
+            if (fs::exists(pathToRemove))
             {
-                if (std::filesystem::is_directory(pathToRemove) && !recursive)
+                if (fs::is_directory(pathToRemove) && !recursive)
                 {
                     std::cout << "rm: cannot remove " << pathToRemove << ": Is a directory\n";
                     return 0;
@@ -146,12 +153,12 @@ int RM::executeRM(int argc, char *argv[])
                 if (interactive)
                 {
                     std::string response;
-                    std::cout << "Remove " << (std::filesystem::is_directory(pathToRemove) ? "directory and its contents" : "file") << " '" << pathToRemove << "' (y/n)? ";
+                    std::cout << "Remove " << (fs::is_directory(pathToRemove) ? "directory and its contents" : "file") << " '" << pathToRemove << "' (y/n)? ";
                     std::cin >> response;
 
                     if (response == "y" || response == "Y")
                     {
-                        std::filesystem::is_directory(pathToRemove) ? removeDirectory(pathToRemove, verbose) : removeFile(pathToRemove, verbose);
+                        fs::is_directory(pathToRemove) ? removeDirectory(pathToRemove, verbose) : removeFile(pathToRemove, verbose);
                     }
                     else
                     {
@@ -160,7 +167,7 @@ int RM::executeRM(int argc, char *argv[])
                 }
                 else
                 {
-                    std::filesystem::is_directory(pathToRemove) ? removeDirectory(pathToRemove, verbose) : removeFile(pathToRemove, verbose);
+                    fs::is_directory(pathToRemove) ? removeDirectory(pathToRemove, verbose) : removeFile(pathToRemove, verbose);
                 }
             }
             else
@@ -172,10 +179,4 @@ int RM::executeRM(int argc, char *argv[])
     }
 
     return 0;
-}
-
-int main(int argc, char *argv[])
-{
-    RM rm;
-    return rm.executeRM(argc,argv);
 }

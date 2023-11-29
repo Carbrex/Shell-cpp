@@ -1,11 +1,22 @@
-#include "ls.h"
+#include <iostream>
+#include <unistd.h>
+#include <dirent.h>
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <vector>
+#include <algorithm>
+#include <glob.h>
+#include <cstring>
+#include <filesystem>
 
-bool LS::fileExists(const std::string &path) {
+bool fileExists(const std::string &path)
+{
     struct stat buffer;
     return (stat(path.c_str(), &buffer) == 0);
 }
 
-void LS::listFiles(const char *path, bool showHidden, bool reverseOrder, bool longFormat) {
+void listFiles(const char *path, bool showHidden, bool reverseOrder, bool longFormat)
+{
     DIR *dir;
     struct dirent *entry;
     std::vector<std::string> fileNames;
@@ -58,7 +69,8 @@ void LS::listFiles(const char *path, bool showHidden, bool reverseOrder, bool lo
     }
 }
 
-void LS::listFilesRecursive(const char *path, bool showHidden, bool reverseOrder, bool longFormat) {
+void listFilesRecursive(const char *path, bool showHidden, bool reverseOrder, bool longFormat)
+{
     // std::cout<<path<<":\n";
     DIR *dir;
     struct dirent *entry;
@@ -120,7 +132,7 @@ void LS::listFilesRecursive(const char *path, bool showHidden, bool reverseOrder
     }
 }
 
-void LS::displayHelp()
+void displayHelp()
 {
     std::cout << "Usage: ls [options] [directory]\n"
               << "List information about files.\n\n"
@@ -132,11 +144,12 @@ void LS::displayHelp()
               << "  -h      Display this help message\n";
 }
 
-bool LS::isWildcard(const char *path) {
+bool isWildcard(const char *path)
+{
     return std::strchr(path, '*') != nullptr || std::strchr(path, '?') != nullptr;
 }
 
-int LS::executeLS(int argc, char *argv[])
+int main(int argc, char *argv[])
 {
     int opt;
     bool showHidden = false;
@@ -144,6 +157,7 @@ int LS::executeLS(int argc, char *argv[])
     bool longFormat = false;
     bool recursive = false;
     bool help = false;
+
     while ((opt = getopt(argc, argv, "hrRal")) != -1)
     {
         switch (opt)
@@ -171,31 +185,30 @@ int LS::executeLS(int argc, char *argv[])
         }
     }
 
-    LS ls;
     // If no directory is provided, use the current working directory
     if (help)
     {
-        ls.displayHelp();
+        displayHelp();
         return 0;
     }
     if (optind < argc)
     {
-        for (int i = optind; i < argc; i++)
+        for (size_t i = optind; i < argc; i++)
         {
             const char *path = argv[i];
             // Check if the '-R' option is present
-            if (ls.fileExists(path) && !std::filesystem::is_directory(path))
+            if (fileExists(path) && !std::filesystem::is_directory(path))
             {
                 std::cout << path << '\n';
             }
             else if (recursive)
             {
-                ls.listFilesRecursive(path, showHidden, reverseOrder, longFormat);
+                listFilesRecursive(path, showHidden, reverseOrder, longFormat);
             }
             else
             {
                 std::cout<<path<<":\n";
-                ls.listFiles(path, showHidden, reverseOrder, longFormat);
+                listFiles(path, showHidden, reverseOrder, longFormat);
                 std::cout<<'\n';
             }
         }
@@ -205,19 +218,13 @@ int LS::executeLS(int argc, char *argv[])
         const char *path = ".";
         if (recursive)
         {
-            ls.listFilesRecursive(path, showHidden, reverseOrder, longFormat);
+            listFilesRecursive(path, showHidden, reverseOrder, longFormat);
         }
         else
         {
-            ls.listFiles(path, showHidden, reverseOrder, longFormat);
+            listFiles(path, showHidden, reverseOrder, longFormat);
         }
     }
 
     return 0;
-}
-
-int main(int argc, char *argv[])
-{
-    LS ls;
-    return ls.executeLS(argc,argv);
 }
