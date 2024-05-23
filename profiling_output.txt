@@ -1,0 +1,59 @@
+ls -R condition1
+real    0m5.929s
+user    0m0.006s
+sys     0m0.001s
+
+ls -R condition2
+real    0m1.679s
+user    0m0.043s
+sys     0m0.271s
+
+ls -R condition3
+real    0m3.658s
+user    0m0.045s
+sys     0m0.530s
+
+mv condition1 condition4
+real    0m2.907s
+user    0m0.004s
+sys     0m0.002s
+
+mv condition2 condition5
+real    0m1.372s
+user    0m0.006s
+sys     0m0.001s
+
+mv condition3 condition6
+real    0m1.505s
+user    0m0.005s
+sys     0m0.001s
+
+cp -r condition1 condition4
+real    4m19.282s
+user    0m4.832s
+sys     2m40.045s
+
+cp -r condition2 condition5
+real    4m19.221s
+user    0m5.012s
+sys     2m30.052s
+
+cp -r condition3 condition6
+real    4m12.871s
+user    0m4.966s
+sys     2m10.796s
+
+rm -r condition1
+real    0m2.276s
+user    0m0.004s
+sys     0m0.706s
+
+rm -r condition2
+real    0m2.692s
+user    0m0.005s
+sys     0m0.875s
+
+rm -r condition3
+real    0m2.391s
+user    0m0.005s
+sys     0m0.938s
