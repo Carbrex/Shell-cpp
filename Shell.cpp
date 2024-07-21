@@ -204,7 +204,7 @@ void Shell::executeMv(const Command &parsedCommand)
     pid = fork();
     if (pid == 0)
     {
-        std::cout << execv("/home/geetika/OOPD/Shell-Project/mv.o", argv);
+        std::cout << execv("./mv.o", argv);
         // If execv fails, print an error message and exit the child process
         perror("execv");
         exit(EXIT_FAILURE);
@@ -241,7 +241,7 @@ void Shell::executeRm(const Command &parsedCommand)
     pid = fork();
     if (pid == 0)
     {
-        std::cout << execv("/home/geetika/OOPD/Shell-Project/rm.o", argv);
+        std::cout << execv("./rm.o", argv);
         // If execv fails, print an error message and exit the child process
         perror("execv");
         exit(EXIT_FAILURE);
@@ -278,7 +278,7 @@ void Shell::executeLs(const Command &parsedCommand)
     pid = fork();
     if (pid == 0)
     {
-        std::cout << execv("/home/geetika/OOPD/Shell-Project/ls.o", argv);
+        std::cout << execv("./ls.o", argv);
         // If execv fails, print an error message and exit the child process
         perror("execv");
         exit(EXIT_FAILURE);
@@ -315,7 +315,7 @@ void Shell::executeCp(const Command &parsedCommand)
     pid = fork();
     if (pid == 0)
     {
-        std::cout << execv("/home/geetika/OOPD/Shell-Project/cp.o", argv);
+        std::cout << execv("./cp.o", argv);
         // If execv fails, print an error message and exit the child process
         perror("execv");
         exit(EXIT_FAILURE);
@@ -369,7 +369,7 @@ int main()
 
         // Get user input
         std::string USER = getenv("USER");
-        std::string NAME = getenv("NAME");
+        std::string NAME = getenv("USERNAME");
         std::cout << USER << "@" << NAME << ": " << get_pwd() << "$ ";
         std::getline(std::cin, userInput);
         Command parsedCommand = myShell.parseCommand(userInput);
